@@ -6,27 +6,75 @@ import java.util.*;
 
 public class Main {
     // Size of matrices N*N
-    static final int N = 1000;
+    static final int N = 2;
     // M number of tests performed
-    static final int M = 10;
+    static final int M = 1;
+    // When using showMatrices make sure not to see N to a really high number!
+    static final boolean showMatrices = true;
+    static Random rand = new Random();
 
-    public static double[] convertToOneDimensionalArray(int[][] twoDimensionalArray) {
-        double[] oneDimensionalArray = new double[N*N];
+    public static int[][] randomMatrixGenerator() {
+        int[][] matrix = new int[N][N];
 
-        for (int i = 0 ; i < N*N ; i++) {
-            int columnNum = i / N;
-            int rowNum = i - columnNum * N;
-
-            oneDimensionalArray[i] = twoDimensionalArray[rowNum][columnNum];
+        // Initialising matrices
+        for (int i = 0 ; i < N ; i++) {
+            for(int j = 0 ; j < N ; j++) {
+                matrix[i][j]=rand.nextInt(100);
+            }
         }
 
-        return oneDimensionalArray;
+        return matrix;
     }
+    public static DenseMatrix randomDenseMatrixGenerator() {
+        // Flattened matrix is a matrix represented in a single dimension array
+        //   instead of a two-dimensional array.
+        double[] flattenedMatrix = new double[N*N];
+        for (int i = 0 ; i < N*N ; i++ ) {
+            flattenedMatrix[i] = rand.nextInt(100);
+        }
 
-    public static long sequentialMatrixMultiplication(int[][]A, int[][]B) {
+        // Converting flattened matrix into Spark's DenseMatrix
+        // the DenseMatrix is column based, so if the flattened matrix is [1, 4, 5, 12, 11, 2, 9, 16, 19]
+        //   then the DenseMatrix will look like:
+        //   01 12 09
+        //   04 11 16
+        //   05 02 19
+        return new DenseMatrix(N, N, flattenedMatrix);
+
+    }
+    public static void matrixVisualiser(int[][] matrix) {
+        for (int i = 0; i < N; i++) {
+            for (int j = 0; j < N; j++) {
+                System.out.print(matrix[i][j] + "\t");
+            }
+            System.out.print("\n");
+        }
+    }
+    public static void matrixVisualiser(double[] matrix) {
+        // ith row
+        for (int i = 0; i < N; i++) {
+            // jth column
+            for (int j = 0; j < N; j++) {
+                System.out.print((int) matrix[i+(j*N)] + "\t");
+            }
+
+            System.out.print("\n");
+        }
+    }
+    public static long sequentialMatrixMultiplication() {
 
         long startTime, endTime, duration;
+
+        int[][] A = randomMatrixGenerator();
+        int[][] B = randomMatrixGenerator();
         int[][] C = new int[N][N];
+
+        if (showMatrices) {
+            System.out.println("Matrix A: ");
+            matrixVisualiser(A);
+            System.out.println("Matrix B: ");
+            matrixVisualiser(B);
+        }
 
         // Sequential Matrix Multiplication
         startTime = System.nanoTime();
@@ -42,13 +90,26 @@ public class Main {
 
         endTime = System.nanoTime();
         duration = (endTime - startTime) / 1000000;  //divide by 1000000 to get milliseconds.
-//        System.out.println("SEQUENTIAL MATRIX MULTIPLICATION - Execute time was: " + duration + " milliseconds");
+
+        if (showMatrices) {
+            System.out.println("\nMatrix C: ");
+            matrixVisualiser(C);
+        }
 
         return duration;
     }
-
-    public static long parallelMatrixMultiplication(DenseMatrix Matrix_A, DenseMatrix Matrix_B) {
+    public static long parallelMatrixMultiplication() {
         long startTime, endTime, duration;
+
+        DenseMatrix Matrix_A = randomDenseMatrixGenerator();
+        DenseMatrix Matrix_B = randomDenseMatrixGenerator();
+
+        if (showMatrices) {
+            System.out.println("Matrix A: ");
+            matrixVisualiser(Matrix_A.toArray());
+            System.out.println("Matrix B: ");
+            matrixVisualiser(Matrix_B.toArray());
+        }
 
         // Parallel Matrix Multiplication
         startTime = System.nanoTime();
@@ -57,11 +118,14 @@ public class Main {
 
         endTime = System.nanoTime();
         duration = (endTime - startTime) / 1000000;  //divide by 1000000 to get milliseconds.
-//        System.out.println("PARALLEL MATRIX MULTIPLICATION - Execute time was: " + duration + " milliseconds");
+
+        if (showMatrices) {
+            System.out.println("\nMatrix C: ");
+            matrixVisualiser(Matrix_C.toArray());
+        }
 
         return duration;
     }
-
     public static long averageExecutionTime(ArrayList<Long> testResults) {
         long sum = 0;
         for (long time : testResults) {
@@ -70,7 +134,6 @@ public class Main {
 
         return sum / M;
     }
-
     public static void main(String[] args){
 
         // Spark initialisation
@@ -79,43 +142,24 @@ public class Main {
         JavaSparkContext sc = new JavaSparkContext(conf);
 
         // Generating random matrices
-        Random rand = new Random();
-
-        int[][] A = new int[N][N];
-        int[][] B = new int[N][N];
-        int[][] C = new int[N][N];
-
         long averageExecutionTime;
-
-        // Initialising matrices
-        for (int i = 0 ; i < N ; i++) {
-            for(int j = 0 ; j < N ; j++) {
-                A[i][j]=rand.nextInt(100);
-                B[i][j]=rand.nextInt(100);
-            }
-        }
 
         // Performing M number of tests
         ArrayList<Long> sequentialTestsResults = new ArrayList<>();
         for(int i = 0; i < M; i++) {
-            sequentialTestsResults.add(sequentialMatrixMultiplication(A, B));
+            // matrix multiplication method
+            long executionTime = sequentialMatrixMultiplication();
+            sequentialTestsResults.add(executionTime);
         }
 
         averageExecutionTime = averageExecutionTime(sequentialTestsResults);
         System.out.println("The average execution time for the SEQUENTIAL matrix multiplication was: " + averageExecutionTime + " milliseconds.");
 
-        // Converting 2-Dimensional arrays into a flattened 1-Dimensional array
-        double[] Flattened_MatrixA = convertToOneDimensionalArray(A);
-        double[] Flattened_MatrixB = convertToOneDimensionalArray(B);
-
-        // Converting flattened matrices into Spark's DenseMatrix
-        DenseMatrix Matrix_A = new DenseMatrix(N, N, Flattened_MatrixA);
-        DenseMatrix Matrix_B = new DenseMatrix(N, N, Flattened_MatrixB);
-
         // Performing M number of tests
         ArrayList<Long> parallelTestsResults = new ArrayList<>();
         for(int i = 0; i < M; i++) {
-            parallelTestsResults.add(parallelMatrixMultiplication(Matrix_A, Matrix_B));
+            long executionTime = parallelMatrixMultiplication();
+            parallelTestsResults.add(executionTime);
         }
 
         averageExecutionTime = averageExecutionTime(parallelTestsResults);
