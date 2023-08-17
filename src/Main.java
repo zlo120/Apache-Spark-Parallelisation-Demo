@@ -1,20 +1,14 @@
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.mllib.linalg.DenseMatrix;
-import org.apache.spark.streaming.Durations;
-import org.apache.spark.streaming.api.java.JavaDStream;
-import org.apache.spark.streaming.api.java.JavaPairDStream;
-import org.apache.spark.streaming.api.java.JavaReceiverInputDStream;
-import org.apache.spark.streaming.api.java.JavaStreamingContext;
-import scala.Tuple2;
 
 import java.util.*;
 
 public class Main {
     // Size of matrices N*N
-    static final int N = 10000;
+    static final int N = 1000;
     // M number of tests performed
-    static final int M = 1000;
+    static final int M = 5;
     // When using showMatrices make sure not to see N to a really high number!
     static final boolean showMatrices = false;
     static Random rand = new Random();
@@ -140,51 +134,36 @@ public class Main {
 
         return sum / M;
     }
-    public static void streamProcessing(SparkConf conf) {
-
-        JavaStreamingContext jsc = new JavaStreamingContext(conf, Durations.seconds(1));
-        JavaReceiverInputDStream<String> lines = jsc.socketTextStream("localhost", 9999);
-        JavaDStream<String> words = lines.flatMap(x -> Arrays.asList(x.split(" ")));
-        JavaPairDStream<String, Integer> pairs = words.mapToPair(s -> new Tuple2<>(s, 1));
-        JavaPairDStream<String, Integer> wordCounts = pairs.reduceByKey((i1, i2) -> i1 + i2);
-
-        wordCounts.print();
-
-        jsc.start();              // Start the computation
-        jsc.awaitTermination();   // Wait for the computation to terminate
-    }
     public static void main(String[] args){
 
         // Spark initialisation
         System.setProperty("hadoop.home.dir", "C:\\winutils");
         SparkConf conf = new SparkConf().setAppName("Matrix Multiply").setMaster("local[2]");
-//        JavaSparkContext sc = new JavaSparkContext(conf);
+        JavaSparkContext sc = new JavaSparkContext(conf);
 
         // Generating random matrices
         long averageExecutionTime;
 
-//        // Performing M number of tests
-//        ArrayList<Long> sequentialTestsResults = new ArrayList<>();
-//        for(int i = 0; i < M; i++) {
-//            // matrix multiplication method
-//            long executionTime = sequentialMatrixMultiplication();
-//            sequentialTestsResults.add(executionTime);
-//        }
+        // Performing M number of tests
+        ArrayList<Long> sequentialTestsResults = new ArrayList<>();
+        for(int i = 0; i < M; i++) {
+            // matrix multiplication method
+            long executionTime = sequentialMatrixMultiplication();
+            sequentialTestsResults.add(executionTime);
+        }
 
-//        averageExecutionTime = averageExecutionTime(sequentialTestsResults);
-//        System.out.println("The average execution time for the SEQUENTIAL matrix multiplication was: " + averageExecutionTime + " milliseconds.");
+        averageExecutionTime = averageExecutionTime(sequentialTestsResults);
+        System.out.println("The average execution time for the SEQUENTIAL matrix multiplication was: " + averageExecutionTime + " milliseconds.");
 
         // Performing M number of tests
-//        ArrayList<Long> parallelTestsResults = new ArrayList<>();
-//        for(int i = 0; i < M; i++) {
-//            long executionTime = parallelMatrixMultiplication();
-//            parallelTestsResults.add(executionTime);
-//        }
-//
-//        averageExecutionTime = averageExecutionTime(parallelTestsResults);
-//        System.out.println("The average execution time for the PARALLEL matrix multiplication was: " + averageExecutionTime + " milliseconds.");
+        ArrayList<Long> parallelTestsResults = new ArrayList<>();
+        for(int i = 0; i < M; i++) {
+            long executionTime = parallelMatrixMultiplication();
+            parallelTestsResults.add(executionTime);
+        }
 
-        // Stream processing
-        streamProcessing(conf);
+        averageExecutionTime = averageExecutionTime(parallelTestsResults);
+        System.out.println("The average execution time for the PARALLEL matrix multiplication was: " + averageExecutionTime + " milliseconds.");
+
     }
 }
