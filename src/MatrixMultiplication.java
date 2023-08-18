@@ -2,6 +2,9 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.mllib.linalg.DenseMatrix;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Random;
 
@@ -138,7 +141,7 @@ public class MatrixMultiplication {
 
     public static void matrixMultiplicationTest(JavaSparkContext sc) {
         // Generating random matrices
-        long averageExecutionTime;
+        long averageParallelExecutionTime, averageSequentialExecutionTime;
 
         // Performing M number of tests
         ArrayList<Long> sequentialTestsResults = new ArrayList<>();
@@ -148,8 +151,7 @@ public class MatrixMultiplication {
             sequentialTestsResults.add(executionTime);
         }
 
-        averageExecutionTime = averageExecutionTime(sequentialTestsResults);
-        System.out.println("The average execution time for the SEQUENTIAL matrix multiplication was: " + averageExecutionTime + " milliseconds.");
+        averageSequentialExecutionTime = averageExecutionTime(sequentialTestsResults);
 
         // Performing M number of tests
         ArrayList<Long> parallelTestsResults = new ArrayList<>();
@@ -158,7 +160,17 @@ public class MatrixMultiplication {
             parallelTestsResults.add(executionTime);
         }
 
-        averageExecutionTime = averageExecutionTime(parallelTestsResults);
-        System.out.println("The average execution time for the PARALLEL matrix multiplication was: " + averageExecutionTime + " milliseconds.");
+        averageParallelExecutionTime = averageExecutionTime(parallelTestsResults);
+
+        // Output the test results to a text file
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter("matrixMultiplicationOutputs/Output.txt"))) {
+            // Write the content to the file
+            writer.write("Average execution time of matrix multiplication " +
+                    M + " tests. \n\nParallel: " + averageParallelExecutionTime +
+                    " milliseconds\nSequential: " + averageSequentialExecutionTime + " milliseconds.");
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }

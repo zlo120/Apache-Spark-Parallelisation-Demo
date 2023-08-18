@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 public class Filtering {
-    static int M = 10;
+    static int M = 5;
     public static long averageExecutionTime(long[] testResults) {
         long sum = 0;
         for (long time : testResults) {
@@ -16,27 +16,26 @@ public class Filtering {
         return sum / M;
     }
     // Method to do sequential data filtering to see which numbers are divisible by 2
-    public static long parallelDataFiltering(JavaSparkContext sc) {
+    public static long parallelDataFiltering(JavaSparkContext sc, int i) {
         JavaRDD<String> lines = sc.textFile("test_data.csv");
 
         long startTime, endTime;
 
         startTime = System.nanoTime();
 
-        JavaRDD<String> divisibleBy2 = lines
-                .flatMap(line -> Arrays.asList(line.split(",")))
+        JavaRDD<String> primeLines = lines.flatMap(line -> Arrays.asList(line.split(",")))
                 .filter(number -> {
                     try {
                         int num = Integer.parseInt(number);
-                        return num % 2 == 0;
+                        return isPrime(num);
                     } catch (NumberFormatException e) {
                         return false;
                     }
                 });
 
-//        divisibleBy2.saveAsTextFile("divisible_by_2");
-
         endTime = System.nanoTime();
+
+        primeLines.coalesce(1).saveAsTextFile("filteringOutputs/" + i + "_prime_numbers");
 
         // returning the duration
         return (endTime - startTime) / 1000000;  //divide by 1000000 to get milliseconds.
@@ -45,31 +44,74 @@ public class Filtering {
     // Method to perform parallel data filtering to see which numbers are divisible by 2
     public static long sequentialDataFiltering() {
         long startTime, endTime;
+        ArrayList<Integer> primeNums = new ArrayList<>();
 
-        startTime = System.nanoTime();
-
-        try (BufferedReader reader = new BufferedReader(new FileReader("test_data.csv"));
-             BufferedWriter writer = new BufferedWriter(new FileWriter("divisible_by_2.csv"))) {
-
+        try (BufferedReader reader = new BufferedReader(new FileReader("test_data.csv"))) {
             String line;
+
+            long time = 0;
+
             while ((line = reader.readLine()) != null) {
                 String[] values = line.split(",");
+
                 for (String value : values) {
-                    int number = Integer.parseInt(value.trim());
-                    if (number % 2 == 0) {
-                        writer.write(Integer.toString(number));
-                        writer.newLine();
+                    int num = Integer.parseInt(value.trim());
+
+                    // Timing only the execution of isPrime()
+                    // Trying to isolate it from the time it takes to read the test_data.csv file as well as
+                    //   isolating it from the time it takes to write to prime_numbers.csv file
+                    startTime = System.nanoTime();
+                    if (isPrime(num)) {
+                        primeNums.add(num);
                     }
+                    endTime = System.nanoTime();
+
+                    time += (endTime - startTime);
                 }
             }
 
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter("filteringOutputs/prime_numbers.csv"))) {
+
+                // foreach num in primeNums
+                for(int num : primeNums) {
+                    writer.write(Integer.toString(num));
+                    writer.newLine();
+                }
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            return time / 1000000;  //divide by 1000000 to get milliseconds.
+
         } catch (IOException e) {
             e.printStackTrace();
+            return -1;
         }
 
-        endTime = System.nanoTime();
+    }
+    // Checking if a number is prime
+    // Method taken from https://www.geeksforgeeks.org/prime-numbers/
+    public static boolean isPrime(int n) {
+        // Check if number is less than
+        // equal to 1
+        if (n <= 1)
+            return false;
 
-        return (endTime - startTime) / 1000000;  //divide by 1000000 to get milliseconds.
+            // Check if number is 2
+        else if (n == 2)
+            return true;
+
+            // Check if n is a multiple of 2
+        else if (n % 2 == 0)
+            return false;
+
+        // If not, then just check the odds
+        for (int i = 3; i <= Math.sqrt(n); i += 2) {
+            if (n % i == 0)
+                return false;
+        }
+        return true;
     }
 
     public static void testFiltering(JavaSparkContext sc) {
@@ -77,7 +119,7 @@ public class Filtering {
         long[] sequentialTestResults = new long[M];
 
         for (int i = 0; i < M; i++) {
-            parallelTestResults[i] = parallelDataFiltering(sc);
+            parallelTestResults[i] = parallelDataFiltering(sc, i);
             sequentialTestResults[i] = sequentialDataFiltering();
         }
 
@@ -85,11 +127,11 @@ public class Filtering {
         long averageSequentialExecutionTime = averageExecutionTime(sequentialTestResults);
 
         // Output the test results to a text file
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter("TestOutput.txt"))) {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter("filteringOutputs/TestOutput.txt"))) {
             // Write the content to the file
-            writer.write("This is the average execution time of filtering the test_data.csv file, this test finds " +
-                    "the average execution time in milliseconds of " + M + " tests. \nParallel: " + averageParallelExecutionTime +
-                    " milliseconds\nSequential: " + averageSequentialExecutionTime + " milliseconds.");
+            writer.write("Average execution time of filtering the test_data.csv file from " +
+                    M + " tests. \n\nParallel: " + averageParallelExecutionTime +
+                    " milliseconds\nSequential: " + averageSequentialExecutionTime + " milliseconds");
 
         } catch (IOException e) {
             e.printStackTrace();
