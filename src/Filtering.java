@@ -131,7 +131,8 @@ public class Filtering {
             // Write the content to the file
             writer.write("Average execution time of filtering the test_data.csv file from " +
                     M + " tests. \n\nParallel: " + averageParallelExecutionTime +
-                    " milliseconds\nSequential: " + averageSequentialExecutionTime + " milliseconds");
+                    " milliseconds\nSequential: " + averageSequentialExecutionTime + " milliseconds" +
+                    "\n\nSpeed up: " + ((float) averageSequentialExecutionTime / averageParallelExecutionTime));
 
         } catch (IOException e) {
             e.printStackTrace();

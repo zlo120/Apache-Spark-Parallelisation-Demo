@@ -11,7 +11,7 @@ public class Main {
         JavaSparkContext sc = new JavaSparkContext(conf);
 
         // Calling static function to perform a sequential vs parallel matrix multiplication test
-//        MatrixMultiplication.matrixMultiplicationTest(sc);
+        MatrixMultiplication.matrixMultiplicationTest(sc);
 
         // Calling static function to demonstrate RDDs in Spark
         Filtering.testFiltering(sc);
